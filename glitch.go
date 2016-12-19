@@ -1,12 +1,13 @@
 package glitch
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"image/png"
 	"io"
-	"math"
 	"math/rand"
 	"os"
 )
@@ -19,6 +20,8 @@ type Glitch struct {
 	Input  image.Image
 	Output draw.Image
 	Bounds image.Rectangle
+
+	filetype string
 }
 
 // NewGlitch creates a new glich from a filename
@@ -36,18 +39,25 @@ func NewGlitch(filename string) (*Glitch, error) {
 	bounds := img.Bounds()
 
 	glitch := &Glitch{
-		Input:  img,
-		Bounds: bounds,
-		Output: image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy())),
+		Input:    img,
+		Bounds:   bounds,
+		Output:   image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy())),
+		filetype: "png",
 	}
 
 	return glitch, nil
 }
+
+// Seed sets the rand Seed
 func (gl *Glitch) Seed(seed int64) {
 	rand.Seed(seed)
 }
 
 func (gl *Glitch) Write(out io.Writer) error {
+	if gl.filetype == "png" {
+		return png.Encode(out, gl.Output)
+	}
+
 	var opt jpeg.Options
 	opt.Quality = 80
 
@@ -60,8 +70,8 @@ func (gl *Glitch) Copy() {
 	draw.Draw(gl.Output, bounds, gl.Input, bounds.Min, draw.Src)
 }
 
-// Transpose moves slices of the image. Seed is used to randomize the placement
-func (gl *Glitch) Transpose() {
+// TransposeInput moves slices of the image. Seed is used to randomize the placement
+func (gl *Glitch) TransposeInput() {
 	height := rand.Intn(gl.Bounds.Dy())
 	b := gl.Bounds
 	cursor := b.Min.Y
@@ -96,8 +106,8 @@ func (gl *Glitch) Transpose() {
 	}
 }
 
-// VerticalTranspose moves slices of the image. Seed is used to randomize the placement
-func (gl *Glitch) VerticalTranspose() {
+// VerticalTransposeInput moves slices of the image. Seed is used to randomize the placement
+func (gl *Glitch) VerticalTransposeInput() {
 	width := rand.Intn(gl.Bounds.Dx())
 	b := gl.Bounds
 	cursor := b.Min.X
@@ -228,21 +238,44 @@ func (gl *Glitch) HalfLifeLeft() {
 	}
 }
 
-func mixColor(cv1, cv2, av1, av2 uint32) uint32 {
-	if av1 == 0 && av2 == 0 {
-		return 0.0
+// CompressionGhost will compress the image at the lowest value and ghost over it
+func (gl *Glitch) CompressionGhost() {
+	b := bytes.NewBuffer([]byte{})
+	var opt jpeg.Options
+	opt.Quality = 1
+
+	jpeg.Encode(b, gl.Output, &opt)
+
+	// TODO check error
+	img, _ := jpeg.Decode(b)
+	bds := gl.Bounds
+
+	// TODO replace with struct that implements image.Image with value
+	m := image.NewRGBA(image.Rect(0, 0, bds.Dx(), bds.Dy()))
+	cx := color.RGBA{255, 255, 255, uint8(rand.Intn(255))}
+	draw.Draw(m, m.Bounds(), &image.Uniform{cx}, image.ZP, draw.Src)
+	draw.DrawMask(gl.Output, bds, img, image.ZP, m, image.ZP, draw.Over)
+}
+
+// GhostStreach takes the Output and streches across RGB
+// Alpha is random
+func (gl *Glitch) GhostStreach() {
+	b := gl.Bounds
+
+	ghosts := rand.Intn(b.Dy()/10) + 1
+	stepX := rand.Intn(b.Dx()/ghosts) - (b.Dx() / ghosts * 2)
+	stepY := rand.Intn(b.Dy()/ghosts) - (b.Dy() / ghosts * 2)
+	alpha := uint8(rand.Intn(255 / ghosts))
+
+	// TODO: Replace with struct
+	m := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	cx := color.RGBA{0, 0, 0, alpha}
+	draw.Draw(m, m.Bounds(), &image.Uniform{cx}, image.ZP, draw.Src)
+
+	// Red
+	for i := 1; i < ghosts; i++ {
+		draw.DrawMask(gl.Output, b, gl.Output, image.Pt(stepX*i, stepY*i), m, image.ZP, draw.Over)
 	}
-	a1 := float64(av1)
-	a2 := float64(av2)
-	c1 := float64(cv1)
-	c2 := float64(cv2)
-
-	a0 := (a1 + a2*(1-a1))
-	c0 := (c1*a1 + c2*a2*(1-a1)) / a0
-	// THis max might not be needed
-	c0 = math.Max(0.0, math.Min(c0, MAXC))
-
-	return uint32(c0)
 }
 
 func c(a uint32) uint8 {
