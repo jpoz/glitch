@@ -13,7 +13,7 @@ import (
 )
 
 // MAXC is the maxium value returned by RGBA() will have
-const MAXC = 65535.0
+const MAXC = 1<<16 - 1
 
 // Glitch represents the two images needed to produce a glitch
 type Glitch struct {
@@ -265,7 +265,7 @@ func (gl *Glitch) GhostStreach() {
 	ghosts := rand.Intn(b.Dy()/10) + 1
 	stepX := rand.Intn(b.Dx()/ghosts) - (b.Dx() / ghosts * 2)
 	stepY := rand.Intn(b.Dy()/ghosts) - (b.Dy() / ghosts * 2)
-	alpha := uint8(rand.Intn(255 / ghosts))
+	alpha := uint8(rand.Intn(255 / 2))
 
 	// TODO: Replace with struct
 	m := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
@@ -275,6 +275,91 @@ func (gl *Glitch) GhostStreach() {
 	// Red
 	for i := 1; i < ghosts; i++ {
 		draw.DrawMask(gl.Output, b, gl.Output, image.Pt(stepX*i, stepY*i), m, image.ZP, draw.Over)
+	}
+}
+
+// RedBoost boost the red color of the image
+func (gl *Glitch) RedBoost() {
+	b := gl.Bounds
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			or, og, ob, oa := gl.Output.At(x, y).RGBA()
+			a := MAXC - (oa * or / MAXC)
+			sc := color.RGBA64{
+				R: uint16((or*a + or*oa) / MAXC),
+				G: uint16(og),
+				B: uint16(ob),
+				A: uint16(oa),
+			}
+			gl.Output.Set(x, y, sc)
+		}
+	}
+}
+
+// GreenBoost boost the Green color of the image
+func (gl *Glitch) GreenBoost() {
+	b := gl.Bounds
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			or, og, ob, oa := gl.Output.At(x, y).RGBA()
+			a := MAXC - (oa * og / MAXC)
+			sc := color.RGBA64{
+				R: uint16(or),
+				G: uint16((og*a + og*oa) / MAXC),
+				B: uint16(ob),
+				A: uint16(oa),
+			}
+			gl.Output.Set(x, y, sc)
+		}
+	}
+}
+
+// BlueBoost boost the Blue color of the image
+func (gl *Glitch) BlueBoost() {
+	b := gl.Bounds
+
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			or, og, ob, oa := gl.Output.At(x, y).RGBA()
+			a := MAXC - (oa * ob / MAXC)
+			sc := color.RGBA64{
+				R: uint16(or),
+				G: uint16(og),
+				B: uint16((ob*a + ob*oa) / MAXC),
+				A: uint16(oa),
+			}
+			gl.Output.Set(x, y, sc)
+		}
+	}
+}
+
+// PrismBurst spreads channesl around the original image
+func (gl *Glitch) PrismBurst() {
+	b := gl.Bounds
+	offset := rand.Intn(b.Dy()/10) + 1
+	alpha := uint32(rand.Intn(MAXC))
+
+	var out color.RGBA64
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			sr, sg, sb, sa := gl.Output.At(x, y).RGBA()
+
+			dr, _, _, _ := gl.Output.At(x+offset, y+offset).RGBA()
+			_, dg, _, _ := gl.Output.At(x-offset, y+offset).RGBA()
+			_, _, db, _ := gl.Output.At(x+offset, y-offset).RGBA()
+			_, _, _, da := gl.Output.At(x-offset, y-offset).RGBA()
+
+			a := MAXC - (sa * alpha / MAXC)
+
+			out.R = uint16((dr*a + sr*alpha) / MAXC)
+			out.G = uint16((dg*a + sg*alpha) / MAXC)
+			out.B = uint16((db*a + sb*alpha) / MAXC)
+			out.A = uint16((da*a + sa*alpha) / MAXC)
+
+			gl.Output.Set(x, y, &out)
+		}
 	}
 }
 

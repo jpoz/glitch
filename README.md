@@ -90,3 +90,27 @@ gl.VerticalTransposeInput()
 
 
 ![channelshiftright](https://cloud.githubusercontent.com/assets/12866/21326314/ee383d32-c5de-11e6-8c3d-fff32d2a97a1.png)
+
+---
+
+### BlueBoost
+
+![blueboost](https://cloud.githubusercontent.com/assets/12866/21365546/999dc5ea-c6aa-11e6-886f-f773cea07404.png)
+
+---
+
+### GreenBoost
+
+![greenboost](https://cloud.githubusercontent.com/assets/12866/21365549/9b4d31f0-c6aa-11e6-839e-44d57fa6dcea.png)
+
+---
+
+### RedBoost
+
+![redboost](https://cloud.githubusercontent.com/assets/12866/21365554/9d56cc18-c6aa-11e6-97fa-d5d934af59b8.png)
+
+---
+
+### PrismBurst
+
+![prismburst](https://cloud.githubusercontent.com/assets/12866/21365553/9d419a00-c6aa-11e6-811c-7979399445ba.png)
