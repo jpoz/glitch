@@ -363,6 +363,33 @@ func (gl *Glitch) PrismBurst() {
 	}
 }
 
+// Noise add random values to the image
+func (gl *Glitch) Noise() {
+	b := gl.Bounds
+
+	alpha := uint32(rand.Intn(MAXC))
+
+	var out color.RGBA64
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			sr, sg, sb, sa := gl.Output.At(x, y).RGBA()
+
+			dr := uint32(rand.Intn(MAXC))
+			dg := uint32(rand.Intn(MAXC))
+			db := uint32(rand.Intn(MAXC))
+			da := uint32(rand.Intn(MAXC))
+
+			a := MAXC - (sa * alpha / MAXC)
+			out.R = uint16((dr*a + sr*alpha) / MAXC)
+			out.G = uint16((dg*a + sg*alpha) / MAXC)
+			out.B = uint16((db*a + sb*alpha) / MAXC)
+			out.A = uint16((da*a + sa*alpha) / MAXC)
+
+			gl.Output.Set(x, y, &out)
+		}
+	}
+}
+
 func c(a uint32) uint8 {
 	return uint8((float64(a) / MAXC) * 255)
 }

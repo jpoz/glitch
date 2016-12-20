@@ -120,6 +120,15 @@ func main() {
 	f, err = os.Create("./PrismBurst.png")
 	check(err)
 	gl.Write(f)
+
+	gl, err = glitch.NewGlitch("./example.jpg")
+	check(err)
+	gl.Seed(1)
+	gl.Copy()
+	gl.Noise()
+	f, err = os.Create("./Noise.png")
+	check(err)
+	gl.Write(f)
 }
 
 func check(e error) {
