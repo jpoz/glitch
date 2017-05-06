@@ -8,8 +8,9 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"io/ioutil"
 	"math/rand"
-	"os"
+	"net/http"
 )
 
 // MAXC is the maxium value returned by RGBA() will have
@@ -26,13 +27,27 @@ type Glitch struct {
 
 // NewGlitch creates a new glich from a filename
 func NewGlitch(filename string) (*Glitch, error) {
-	f, err := os.Open(filename)
+	f, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
 
-	img, err := jpeg.Decode(f)
-	if err != nil {
+	contentType := http.DetectContentType(f)
+	buff := bytes.NewBuffer(f)
+	var img image.Image
+
+	switch contentType {
+	case "image/jpeg":
+		img, err = jpeg.Decode(buff)
+		if err != nil {
+			return nil, err
+		}
+	case "image/png":
+		img, err = png.Decode(buff)
+		if err != nil {
+			return nil, err
+		}
+	default:
 		return nil, err
 	}
 
@@ -242,7 +257,7 @@ func (gl *Glitch) HalfLifeLeft() {
 func (gl *Glitch) CompressionGhost() {
 	b := bytes.NewBuffer([]byte{})
 	var opt jpeg.Options
-	opt.Quality = 1
+	opt.Quality = rand.Intn(10)
 
 	jpeg.Encode(b, gl.Output, &opt)
 
