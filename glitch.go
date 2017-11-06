@@ -85,17 +85,13 @@ func (gl *Glitch) Copy() {
 	draw.Draw(gl.Output, bounds, gl.Input, bounds.Min, draw.Src)
 }
 
-// TransposeInput moves slices of the image. Seed is used to randomize the placement
-func (gl *Glitch) TransposeInput() {
-	height := rand.Intn(gl.Bounds.Dy())
+// TransposeInput moves slices of the image.
+// transpose if true will start with transposing the image
+func (gl *Glitch) TransposeInput(height, width int, transpose bool) {
 	b := gl.Bounds
 	cursor := b.Min.Y
 
-	// Decide if we start transposing or not
-	transpose := randBool()
-
 	for cursor < b.Max.Y {
-		width := rand.Intn(gl.Bounds.Dx())
 		if transpose {
 			next := cursor + height
 			if next > b.Max.Y {
@@ -121,17 +117,12 @@ func (gl *Glitch) TransposeInput() {
 	}
 }
 
-// VerticalTransposeInput moves slices of the image. Seed is used to randomize the placement
-func (gl *Glitch) VerticalTransposeInput() {
-	width := rand.Intn(gl.Bounds.Dx())
+// VerticalTransposeInput moves slices of the image.
+func (gl *Glitch) VerticalTransposeInput(width, height int, transpose bool) {
 	b := gl.Bounds
 	cursor := b.Min.X
 
-	// Decide if we start transposing or not
-	transpose := randBool()
-
 	for cursor < b.Max.X {
-		height := rand.Intn(gl.Bounds.Dy())
 		if transpose {
 			next := cursor + width
 			if next > b.Max.X {
