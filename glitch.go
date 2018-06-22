@@ -11,6 +11,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+
+	colorful "github.com/lucasb-eyer/go-colorful"
 )
 
 // MAXC is the maxium value returned by RGBA() will have
@@ -63,6 +65,12 @@ func NewGlitch(filename string) (*Glitch, error) {
 	return glitch, nil
 }
 
+// SetBounds sets the bounds used by the glitch functions
+func (gl *Glitch) SetBounds(newBounds image.Rectangle) {
+	gl.Bounds = newBounds
+	return
+}
+
 // Seed sets the rand Seed
 func (gl *Glitch) Seed(seed int64) {
 	rand.Seed(seed)
@@ -81,7 +89,7 @@ func (gl *Glitch) Write(out io.Writer) error {
 
 // Copy just takes the image and copies to the output
 func (gl *Glitch) Copy() {
-	bounds := gl.Input.Bounds()
+	bounds := gl.Bounds
 	draw.Draw(gl.Output, bounds, gl.Input, bounds.Min, draw.Src)
 }
 
@@ -185,17 +193,24 @@ func (gl *Glitch) ChannelShiftRight() {
 }
 
 // HalfLifeRight takes points and drags color right with a half life.
-func (gl *Glitch) HalfLifeRight() {
+// Number of randomply placed streaks
+func (gl *Glitch) HalfLifeRight(strikes, length int) {
 	b := gl.Bounds
-
-	strikes := rand.Intn(b.Dy())
+	inputBounds := gl.Input.Bounds()
 
 	for strikes > 0 {
-		x := rand.Intn(b.Max.X)
-		y := rand.Intn(b.Max.Y)
+		x := b.Min.X + rand.Intn(b.Max.X-b.Min.X)
+		y := b.Min.Y + rand.Intn(b.Max.Y-b.Min.Y)
 		kc := gl.Output.At(x, y)
 
-		for x < b.Max.X {
+		var streakEnd int
+		if length < 0 {
+			streakEnd = inputBounds.Max.X
+		} else {
+			streakEnd = minInt(x+length, inputBounds.Max.X)
+		}
+
+		for x < streakEnd {
 			r1, g1, b1, a1 := kc.RGBA()
 			r2, g2, b2, a2 := gl.Output.At(x, y).RGBA()
 
@@ -215,17 +230,23 @@ func (gl *Glitch) HalfLifeRight() {
 }
 
 // HalfLifeLeft takes points and drags color Left with a half life.
-func (gl *Glitch) HalfLifeLeft() {
+func (gl *Glitch) HalfLifeLeft(strikes, length int) {
 	b := gl.Bounds
-
-	strikes := rand.Intn(b.Dy())
+	inputBounds := gl.Input.Bounds()
 
 	for strikes > 0 {
-		x := rand.Intn(b.Max.X)
-		y := rand.Intn(b.Max.Y)
+		x := b.Min.X + rand.Intn(b.Max.X-b.Min.X)
+		y := b.Min.Y + rand.Intn(b.Max.Y-b.Min.Y)
 		kc := gl.Output.At(x, y)
 
-		for x >= 0 {
+		var streakEnd int
+		if length < 0 {
+			streakEnd = inputBounds.Min.X
+		} else {
+			streakEnd = minInt(x-length, inputBounds.Min.X)
+		}
+
+		for x >= streakEnd {
 			r1, g1, b1, a1 := kc.RGBA()
 			r2, g2, b2, a2 := gl.Output.At(x, y).RGBA()
 
@@ -370,28 +391,93 @@ func (gl *Glitch) PrismBurst() {
 }
 
 // Noise add random values to the image
-func (gl *Glitch) Noise() {
-	b := gl.Bounds
+func (gl *Glitch) Noise(r, g, b, a float64) {
+	bo := gl.Bounds
 
-	alpha := uint32(rand.Intn(MAXC))
+	//for y := bo.Min.Y; y < bo.Max.Y; y++ {
+	//for x := bo.Min.X; x < bo.Max.X; x++ {
+	var out colorful.Color
+	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+		for x := bo.Min.X; x < bo.Max.X; x++ {
+			baseColorRaw := gl.Output.At(x, y)
+			baseColor := colorful.MakeColor(baseColorRaw)
 
-	var out color.RGBA64
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			sr, sg, sb, sa := gl.Output.At(x, y).RGBA()
+			randomBlue := colorful.LinearRgb(
+				rand.Float64()*r,
+				rand.Float64()*g,
+				rand.Float64()*b,
+			)
 
-			dr := uint32(rand.Intn(MAXC))
-			dg := uint32(rand.Intn(MAXC))
-			db := uint32(rand.Intn(MAXC))
-			da := uint32(rand.Intn(MAXC))
-
-			a := MAXC - (sa * alpha / MAXC)
-			out.R = uint16((dr*a + sr*alpha) / MAXC)
-			out.G = uint16((dg*a + sg*alpha) / MAXC)
-			out.B = uint16((db*a + sb*alpha) / MAXC)
-			out.A = uint16((da*a + sa*alpha) / MAXC)
-
+			out = baseColor.BlendLab(randomBlue, rand.Float64()*a)
 			gl.Output.Set(x, y, &out)
+		}
+	}
+}
+
+// ZoomColor expands colors close to color
+func (gl *Glitch) ZoomColor(clrRaw color.Color, maxDistance float64, r int, maxT float64) {
+	bo := gl.Bounds
+
+	clr := colorful.MakeColor(clrRaw)
+	before := image.NewRGBA(image.Rect(bo.Min.X, bo.Min.Y, bo.Max.X, bo.Max.Y))
+	draw.Draw(before, bo, gl.Output, bo.Min, draw.Src)
+
+	for y := bo.Min.Y; y < bo.Max.Y; y++ {
+		for x := bo.Min.X; x < bo.Max.X; x++ {
+			baseColorRaw := before.At(x, y)
+			baseColor := colorful.MakeColor(baseColorRaw)
+
+			dst := clr.DistanceLab(baseColor)
+
+			if dst < maxDistance {
+				var rad int
+				inc := 1.0 / float64(r)
+				t := maxT
+				for rad < r {
+					rad++
+					gl.drawCircle(baseColorRaw, x, y, rad, t)
+					t = t * inc
+				}
+			}
+		}
+	}
+}
+
+func (gl *Glitch) mixColorAt(clrRaw color.Color, x, y int, t float64) {
+	if (y < gl.Bounds.Min.Y) || (y >= gl.Bounds.Max.Y) {
+		return
+	}
+	if (x < gl.Bounds.Min.X) || (x >= gl.Bounds.Max.X) {
+		return
+	}
+
+	baseColorRaw := gl.Output.At(x, y)
+	baseColor := colorful.MakeColor(baseColorRaw)
+	clr := colorful.MakeColor(clrRaw)
+
+	out := baseColor.BlendLab(clr, t)
+
+	gl.Output.Set(x, y, &out)
+}
+
+func (gl *Glitch) drawCircle(clrRaw color.Color, x, y, r int, t float64) {
+	x1, y1, rad := -r, 0, 2-2*r
+	for {
+		gl.mixColorAt(clrRaw, x-x1, y+y1, t)
+		gl.mixColorAt(clrRaw, x-y1, y-x1, t)
+		gl.mixColorAt(clrRaw, x+x1, y-y1, t)
+		gl.mixColorAt(clrRaw, x+y1, y+x1, t)
+		r = rad
+		if r > x1 {
+			x1++
+			rad += x1*2 + 1
+		}
+		if r <= y1 {
+			y1++
+			rad += y1*2 + 1
+		}
+		if x1 >= 0 {
+			break
 		}
 	}
 }
@@ -409,5 +495,12 @@ func maxInt(a, b int) int {
 		return a
 	}
 
+	return b
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
 	return b
 }

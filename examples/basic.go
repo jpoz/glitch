@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"image/color"
 	"os"
 
 	"github.com/jpoz/glitch"
@@ -11,11 +13,13 @@ func main() {
 	check(err)
 
 	gl.Copy()
-	// gl.TransposeInput(10, 10, true)
-	// gl.VerticalTransposeInput(10, 10, true)
-	gl.HalfLifeRight(1000)
+	gl.HalfLifeRight(10000, 10)
 
-	f, err := os.Create("./Copy.png")
+	clr := color.RGBA{0xf2, 0xf7, 0xfc, 0xff}
+	gl.ZoomColor(clr, 0.4, 10, 0.8)
+
+	newFile := fmt.Sprintf("./out2.png")
+	f, err := os.Create(newFile)
 	check(err)
 	gl.Write(f)
 }
