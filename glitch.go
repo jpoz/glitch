@@ -400,7 +400,7 @@ func (gl *Glitch) Noise(r, g, b, a float64) {
 	for y := bo.Min.Y; y < bo.Max.Y; y++ {
 		for x := bo.Min.X; x < bo.Max.X; x++ {
 			baseColorRaw := gl.Output.At(x, y)
-			baseColor := colorful.MakeColor(baseColorRaw)
+			baseColor, _ := colorful.MakeColor(baseColorRaw)
 
 			randomBlue := colorful.LinearRgb(
 				rand.Float64()*r,
@@ -418,14 +418,14 @@ func (gl *Glitch) Noise(r, g, b, a float64) {
 func (gl *Glitch) ZoomColor(clrRaw color.Color, maxDistance float64, r int, maxT float64) {
 	bo := gl.Bounds
 
-	clr := colorful.MakeColor(clrRaw)
+	clr, _ := colorful.MakeColor(clrRaw)
 	before := image.NewRGBA(image.Rect(bo.Min.X, bo.Min.Y, bo.Max.X, bo.Max.Y))
 	draw.Draw(before, bo, gl.Output, bo.Min, draw.Src)
 
 	for y := bo.Min.Y; y < bo.Max.Y; y++ {
 		for x := bo.Min.X; x < bo.Max.X; x++ {
 			baseColorRaw := before.At(x, y)
-			baseColor := colorful.MakeColor(baseColorRaw)
+			baseColor, _ := colorful.MakeColor(baseColorRaw)
 
 			dst := clr.DistanceLab(baseColor)
 
@@ -452,8 +452,8 @@ func (gl *Glitch) mixColorAt(clrRaw color.Color, x, y int, t float64) {
 	}
 
 	baseColorRaw := gl.Output.At(x, y)
-	baseColor := colorful.MakeColor(baseColorRaw)
-	clr := colorful.MakeColor(clrRaw)
+	baseColor, _ := colorful.MakeColor(baseColorRaw)
+	clr, _ := colorful.MakeColor(clrRaw)
 
 	out := baseColor.BlendLab(clr, t)
 
